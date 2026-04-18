@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>앞산 클레이 컨디션 · Terra Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=IBM+Plex+Mono:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg-deep: #120a06;
+    --bg-surface: #1e1209;
+    --bg-card: #251810;
+    --bg-elevated: #2f1f15;
+    --border: rgba(224, 123, 66, 0.15);
+    --border-strong: rgba(224, 123, 66, 0.35);
+    --clay: #e07b42;
+    --clay-deep: #b9531f;
+    --clay-light: #f4a876;
+    --cream: #f5e6d3;
+    --cream-muted: #b8a088;
+    --cream-dim: #7a6550;
+    --grid: rgba(245, 230, 211, 0.04);
+    --status-best: #a8d36a;
+    --status-caution: #f4c04a;
+    --status-muddy: #e07b42;
+    --status-unusable: #d14b30;
+    --font-display: 'Fraunces', serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-body: 'Noto Sans KR', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: var(--bg-deep); color: var(--cream); font-family: var(--font-body); font-weight: 300; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  body {
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(224,123,66,0.08) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(185,83,31,0.06) 0%, transparent 40%),
+      repeating-linear-gradient(0deg, var(--grid) 0, var(--grid) 1px, transparent 1px, transparent 48px),
+      repeating-linear-gradient(90deg, var(--grid) 0, var(--grid) 1px, transparent 1px, transparent 48px);
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 24px 60px; }
+
+  /* ===== LOADING / ERROR ===== */
+  .loading-overlay { position: fixed; inset: 0; background: var(--bg-deep); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .loading-overlay.hidden { display: none; }
+  .loading-content { text-align: center; }
+  .loading-spinner { width: 40px; height: 40px; border: 2px solid var(--border-strong); border-top-color: var(--clay); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-family: var(--font-mono); font-size: 11px; color: var(--cream-muted); letter-spacing: 0.2em; text-transform: uppercase; }
+  .error-box { background: rgba(209,75,48,0.12); border: 1px solid var(--status-unusable); padding: 16px 20px; margin-bottom: 24px; border-radius: 4px; }
+  .error-box strong { color: var(--status-unusable); font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; }
+  .error-box p { color: var(--cream-muted); font-size: 13px; margin-top: 8px; }
+
+  /* ===== HEADER ===== */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .brand-mark { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--clay); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .brand-mark::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--clay); border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(0.7);} }
+  .brand-title { font-family: var(--font-display); font-size: 44px; font-weight: 500; line-height: 1; letter-spacing: -0.02em; color: var(--cream); font-variation-settings: "opsz" 96; }
+  .brand-subtitle { font-family: var(--font-mono); font-size: 11px; color: var(--cream-dim); margin-top: 8px; letter-spacing: 0.05em; }
+  .now-block { text-align: right; font-family: var(--font-mono); }
+  .now-label { font-size: 10px; letter-spacing: 0.24em; color: var(--cream-dim); text-transform: uppercase; margin-bottom: 4px; }
+  .now-time { font-size: 22px; color: var(--clay-light); font-weight: 400; }
+  .now-date { font-size: 11px; color: var(--cream-muted); margin-top: 2px; }
+
+  /* ===== SECTION HEADS ===== */
+  .sect-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+  .sect-title { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: var(--clay); }
+  .sect-title span { color: var(--cream-dim); margin-left: 8px; font-weight: 400; }
+  .sect-meta { font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); letter-spacing: 0.1em; }
+
+  /* ===== WEATHER STRIP ===== */
+  .wx-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 44px; }
+  .wx-cell { background: var(--bg-surface); padding: 20px 18px; position: relative; overflow: hidden; }
+  .wx-cell::before { content: ''; position: absolute; top: 0; left: 0; width: 2px; height: 100%; background: var(--clay); opacity: 0.6; }
+  .wx-label { font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; }
+  .wx-value { font-family: var(--font-display); font-size: 38px; font-weight: 300; color: var(--cream); line-height: 1; font-variation-settings: "opsz" 96; }
+  .wx-unit { font-family: var(--font-mono); font-size: 13px; color: var(--clay-light); margin-left: 6px; font-weight: 400; }
+  .wx-trend { font-family: var(--font-mono); font-size: 10px; color: var(--cream-muted); margin-top: 10px; letter-spacing: 0.05em; }
+
+  /* ===== COURTS ===== */
+  .courts-section { margin-bottom: 44px; }
+  .courts-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .court-card { background: var(--bg-surface); border: 1px solid var(--border); padding: 16px 14px; position: relative; overflow: hidden; transition: border-color 0.3s, transform 0.3s; opacity: 0; animation: riseIn 0.6s ease-out forwards; }
+  .court-card:nth-child(1) { animation-delay: 0.05s; }
+  .court-card:nth-child(2) { animation-delay: 0.12s; }
+  .court-card:nth-child(3) { animation-delay: 0.19s; }
+  .court-card:nth-child(4) { animation-delay: 0.26s; }
+  .court-card:nth-child(5) { animation-delay: 0.33s; }
+  @keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .court-card:hover { border-color: var(--border-strong); }
+  .court-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .court-num { font-family: var(--font-display); font-size: 28px; font-weight: 500; line-height: 1; color: var(--cream); font-variation-settings: "opsz" 96; }
+  .court-tag { font-family: var(--font-mono); font-size: 9px; color: var(--cream-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+  .court-svg { width: 100%; height: 70px; margin-bottom: 12px; }
+  .court-status { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; padding: 5px 8px; display: inline-block; border-radius: 2px; }
+  .court-moisture { font-family: var(--font-mono); font-size: 10px; color: var(--cream-muted); margin-top: 8px; }
+  .court-moisture .val { color: var(--cream); font-weight: 500; }
+
+  /* ===== COEF CONTROL ===== */
+  .control-section { margin-bottom: 44px; }
+  .control-panel { background: var(--bg-surface); border: 1px solid var(--border); padding: 22px; }
+  .coef-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+  .coef-item { position: relative; }
+  .coef-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--cream-muted); letter-spacing: 0.05em; }
+  .coef-label strong { color: var(--clay-light); font-weight: 500; }
+  .coef-val { font-family: var(--font-display); color: var(--cream); font-size: 16px; font-weight: 500; }
+  input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: linear-gradient(to right, var(--clay-deep), var(--clay-light)); border-radius: 0; outline: none; cursor: pointer; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 14px; height: 14px; background: var(--cream); border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 3px var(--clay-deep); transition: transform 0.15s; }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; background: var(--cream); border-radius: 50%; border: 3px solid var(--clay-deep); cursor: pointer; }
+  .ctrl-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .reset-btn { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--cream-muted); background: transparent; border: 1px solid var(--border-strong); padding: 8px 14px; cursor: pointer; transition: all 0.2s; }
+  .reset-btn:hover { color: var(--clay-light); border-color: var(--clay); }
+
+  /* ===== CHART ===== */
+  .chart-section { margin-bottom: 44px; }
+  .chart-panel { background: var(--bg-surface); border: 1px solid var(--border); padding: 24px; }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 10px; color: var(--cream-muted); letter-spacing: 0.05em; }
+  .legend-swatch { width: 16px; height: 3px; border-radius: 0; }
+  .legend-dash { width: 16px; border-top: 2px dashed; }
+  .chart-container { position: relative; width: 100%; height: 320px; }
+
+  /* ===== FORECAST ===== */
+  .forecast-section { margin-bottom: 32px; }
+  .forecast-list { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .forecast-row { display: grid; grid-template-columns: 110px 1fr auto; align-items: center; gap: 18px; padding: 16px 20px; background: var(--bg-surface); border: 1px solid var(--border); border-left: 3px solid var(--clay); transition: all 0.2s; }
+  .forecast-row:hover { border-left-color: var(--clay-light); background: var(--bg-card); }
+  .fc-court { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 12px; color: var(--cream); letter-spacing: 0.05em; }
+  .fc-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .fc-timing { font-family: var(--font-mono); font-size: 12px; color: var(--cream-muted); letter-spacing: 0.03em; }
+  .fc-timing strong { color: var(--status-best); font-weight: 500; }
+  .fc-timing .caut { color: var(--status-caution); }
+  .fc-coef { font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); letter-spacing: 0.1em; }
+
+  /* ===== FOOTER ===== */
+  .footer { padding-top: 24px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); line-height: 1.8; letter-spacing: 0.03em; }
+  .footer strong { color: var(--clay-light); font-weight: 500; }
+
+  @media (max-width: 900px) {
+    .wrap { padding: 20px 16px 40px; }
+    .brand-title { font-size: 32px; }
+    .wx-strip { grid-template-columns: repeat(2, 1fr); }
+    .courts-grid { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .court-card { padding: 10px 8px; }
+    .court-num { font-size: 20px; }
+    .court-tag { font-size: 8px; }
+    .court-svg { height: 48px; }
+    .court-status { font-size: 9px; padding: 3px 6px; }
+    .court-moisture { font-size: 9px; }
+    .coef-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .forecast-row { grid-template-columns: 80px 1fr; padding: 12px 14px; }
+    .fc-coef { grid-column: 1 / -1; text-align: right; margin-top: 4px; }
+    .chart-container { height: 260px; }
+  }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-content">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">기상 데이터 수신 중</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <h1 class="sr-only">앞산 클레이코트 컨디션 모니터</h1>
+
+  <header class="header">
+    <div>
+      <div class="brand-mark">TERRA CONTROL · 월촌테니스장</div>
+      <div class="brand-title">앞산 클레이 컨디션</div>
+      <div class="brand-subtitle">5-COURT CLAY MOISTURE · MONITORING SYSTEM · v5</div>
+    </div>
+    <div class="now-block">
+      <div class="now-label">NOW</div>
+      <div class="now-time" id="nowTime">--:--</div>
+      <div class="now-date" id="nowDate">— · — · —</div>
+    </div>
+  </header>
+
+  <div id="errorBox"></div>
+
+  <section style="margin-bottom: 44px;">
+    <div class="sect-head">
+      <div class="sect-title">현재 기상 <span>CURRENT · DAEGU ASOS-143</span></div>
+      <div class="sect-meta" id="updateMeta">UPDATING...</div>
+    </div>
+    <div class="wx-strip">
+      <div class="wx-cell">
+        <div class="wx-label">기온 / TEMP</div>
+        <div><span class="wx-value" id="wxTa">-</span><span class="wx-unit">℃</span></div>
+        <div class="wx-trend" id="wxTaTrend">—</div>
+      </div>
+      <div class="wx-cell">
+        <div class="wx-label">풍속 / WIND</div>
+        <div><span class="wx-value" id="wxWs">-</span><span class="wx-unit">m/s</span></div>
+        <div class="wx-trend" id="wxWsTrend">—</div>
+      </div>
+      <div class="wx-cell">
+        <div class="wx-label">습도 / HUMIDITY</div>
+        <div><span class="wx-value" id="wxHm">-</span><span class="wx-unit">%</span></div>
+        <div class="wx-trend" id="wxHmTrend">—</div>
+      </div>
+      <div class="wx-cell">
+        <div class="wx-label">강수 / RAIN (1H)</div>
+        <div><span class="wx-value" id="wxRn">-</span><span class="wx-unit">mm</span></div>
+        <div class="wx-trend" id="wxRnTrend">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="courts-section">
+    <div class="sect-head">
+      <div class="sect-title">코트 상태 <span>COURT STATUS MAP</span></div>
+      <div class="sect-meta">TOP-DOWN VIEW · REAL-TIME</div>
+    </div>
+    <div class="courts-grid" id="courtsGrid"></div>
+  </section>
+
+  <section class="control-section">
+    <div class="sect-head">
+      <div class="sect-title">코트별 건조 계수 <span>DRYING COEFFICIENTS</span></div>
+      <div class="sect-meta">0.10 — 3.00 · HIGHER = FASTER</div>
+    </div>
+    <div class="control-panel">
+      <div class="ctrl-row">
+        <div style="font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); letter-spacing: 0.1em;">회원 경험치 반영 · 자동 저장</div>
+        <button class="reset-btn" id="resetBtn">기본값 복원</button>
+      </div>
+
+      <!-- 관리자 역량 (전역 계수) -->
+      <div style="background: var(--bg-card); border: 1px solid var(--border-strong); padding: 16px 18px; margin-bottom: 20px; border-radius: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
+          <div>
+            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--clay); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 4px;">관리자 역량 · MANAGER FACTOR</div>
+            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim);">전체 코트에 곱해지는 계수 · 정비/브러싱/배수 관리 수준</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="coef-val" id="mgrVal" style="font-size: 22px;">1.00</div>
+            <div id="mgrLabel" style="font-family: var(--font-mono); font-size: 10px; color: var(--cream-muted); letter-spacing: 0.1em; margin-top: 2px;">보통</div>
+          </div>
+        </div>
+        <input type="range" min="0.3" max="2.5" value="1.0" step="0.05" id="mgrCoef" />
+        <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 9px; color: var(--cream-dim); margin-top: 8px; letter-spacing: 0.1em;">
+          <span>방치 0.3×</span>
+          <span>보통 1.0×</span>
+          <span>최상 2.5×</span>
+        </div>
+      </div>
+
+      <div class="coef-grid" id="coefsGrid"></div>
+    </div>
+  </section>
+
+  <section class="chart-section">
+    <div class="sect-head">
+      <div class="sect-title">타임라인 <span>MOISTURE TIMELINE</span></div>
+      <div class="sect-meta" id="timelineMeta">PAST → NOW → FORECAST</div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-legend" id="chartLegend"></div>
+      <div class="chart-container">
+        <canvas id="chart" role="img" aria-label="5개 코트 수분 잔량 타임라인"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <section class="forecast-section">
+    <div class="sect-head">
+      <div class="sect-title">복구 예측 <span>RECOVERY FORECAST</span></div>
+      <div class="sect-meta">거의 가능(&lt;2.5mm) → 가능(&lt;1.0mm)</div>
+    </div>
+    <div class="forecast-list" id="forecastList"></div>
+  </section>
+
+  <footer class="footer">
+    <div><strong>데이터 소스</strong> · 기상청 ASOS(어제 실측) + 초단기실황(오늘 실측) + 단기예보(향후) · 대구 143번 관측소</div>
+    <div style="margin-top: 6px;"><strong>모델 · v5</strong> · 야간 건조율 12% · 습도 75%↑ 건조 중단 · 습도 85%↑ & 야간 시 이슬 보정 · 코트별 계수 ×</div>
+    <div style="margin-top: 6px;"><strong>상태 판정</strong> · 0~1.0 가능 · 1.0~2.5 거의 가능 · 2.5+ 불가능 [수분잔량 mm]</div>
+    <div style="margin-top: 12px; color: var(--clay); letter-spacing: 0.24em;">— 영남테니스클럽 × 앞산 클레이 —</div>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   API CONFIG — 배포 후 URL 교체
+   ============================================================ */
+const API_URL = (() => {
+  // 로컬 에뮬레이터 자동 감지
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:') {
+    return 'http://127.0.0.1:5001/tennis-score-a3654/asia-northeast3/weather';
+  }
+  // 배포된 Functions URL (Google Cloud Run)
+  return 'https://weather-rurosi5eja-du.a.run.app';
+})();
+
+/* ============================================================
+   COURTS CONFIG
+   ============================================================ */
+const DEFAULT_COEFS = {1: 1.4, 2: 1.4, 3: 0.85, 4: 0.55, 5: 0.55};
+const DEFAULT_MGR = 1.0;
+const COURT_META = {
+  1: {tag: '양지 A', color: '#f4a876'},
+  2: {tag: '양지 B', color: '#e07b42'},
+  3: {tag: '반음지', color: '#b08c62'},
+  4: {tag: '음지 A', color: '#6a8fb8'},
+  5: {tag: '음지 B', color: '#4d6989'}
+};
+let coefs = {...DEFAULT_COEFS};
+let mgrCoef = DEFAULT_MGR;
+
+const STORAGE_KEY = 'wolchon-clay-coefs-v1';
+
+function saveSettings(){
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({coefs, mgrCoef}));
+  } catch(e) { console.warn('Save failed:', e); }
+}
+function loadSettings(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    if (obj.coefs) {
+      for (let i=1; i<=5; i++) {
+        if (typeof obj.coefs[i] === 'number') coefs[i] = obj.coefs[i];
+      }
+    }
+    if (typeof obj.mgrCoef === 'number') mgrCoef = obj.mgrCoef;
+  } catch(e) { console.warn('Load failed:', e); }
+}
+function clearSettings(){
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+}
+function mgrLabelOf(v){
+  if (v < 0.5) return '방치';
+  if (v < 0.8) return '소홀';
+  if (v < 1.1) return '보통';
+  if (v < 1.4) return '성실';
+  if (v < 1.8) return '꼼꼼';
+  if (v < 2.2) return '전문가';
+  return '최상';
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let timeline = [];     // 통합 시계열 [{time, ta, hm, ws, icsr, rn, source}, ...]
+let nowIdx = 0;        // 현재 시각 인덱스 (current 끝점)
+let chart;
+
+/* ============================================================
+   DATA FETCH
+   ============================================================ */
+async function loadData() {
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    // 시계열 합치기: past + current + future
+    // time 형식: "2026-04-17 12:00" (ASOS) 또는 "20260418 0900" (현재/예보)
+    const normalize = (item) => {
+      let t = item.time;
+      if (t.includes('-')) {
+        // ASOS: "2026-04-17 12:00" → "20260417 1200"
+        t = t.replace(/-/g, '').replace(':', '').replace(' ', ' ');
+      } else if (t.length === 13 && t.includes(' ')) {
+        // "20260418 0900" 그대로
+      }
+      return {...item, time: t};
+    };
+
+    const past = (data.past || []).map(normalize);
+    const current = (data.current || []).map(normalize);
+    const future = (data.future || []).map(normalize);
+
+    // 중복 제거 (time 기준)
+    const seen = new Set();
+    timeline = [...past, ...current, ...future].filter((item) => {
+      if (seen.has(item.time)) return false;
+      seen.add(item.time);
+      return true;
+    }).sort((a, b) => a.time.localeCompare(b.time));
+
+    // 현재 시각 인덱스 = current의 마지막 (없으면 past의 마지막)
+    if (current.length > 0) {
+      const lastCurrentTime = current[current.length - 1].time;
+      nowIdx = timeline.findIndex((t) => t.time === lastCurrentTime);
+    } else if (past.length > 0) {
+      const lastPastTime = past[past.length - 1].time;
+      nowIdx = timeline.findIndex((t) => t.time === lastPastTime);
+    } else {
+      nowIdx = 0;
+    }
+
+    document.getElementById('updateMeta').textContent =
+      'UPDATED ' + new Date(data.updated).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('errorBox').innerHTML = '';
+    document.getElementById('loadingOverlay').classList.add('hidden');
+
+    return true;
+  } catch (err) {
+    console.error('Load failed:', err);
+    document.getElementById('errorBox').innerHTML = `
+      <div class="error-box">
+        <strong>데이터 로드 실패</strong>
+        <p>${err.message} · API URL: ${API_URL}</p>
+        <p>로컬 테스트 중이라면 Firebase 에뮬레이터가 켜져있는지 확인해주세요.</p>
+      </div>
+    `;
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    return false;
+  }
+}
+
+/* ============================================================
+   MODEL
+   ============================================================ */
+function baseDryingRate(d){
+  const isDay = d.icsr > 0.1;
+  const daytime = isDay ? 1.0 : 0.12;
+  if(d.hm >= 75) return isDay ? 0.02 : 0;
+  const tempF = Math.max(0, Math.min(1, (d.ta-5)/25));
+  const windF = Math.min(1, d.ws/5);
+  const solarF = Math.min(1, d.icsr/3.5);
+  const humF = Math.max(0, (75-d.hm)/75);
+  return 0.55 * daytime * (tempF*0.15 + windF*0.2 + solarF*0.4 + humF*0.25);
+}
+function dewAdd(d){
+  return (d.hm >= 85 && d.icsr < 0.1) ? 0.04 : 0;
+}
+function simulate(coef){
+  const m = new Array(timeline.length).fill(0);
+  let cur = 0;
+  for(let i=0; i<timeline.length; i++){
+    cur += (timeline[i].rn || 0) * 0.85;
+    cur += dewAdd(timeline[i]);
+    cur = Math.max(0, cur - baseDryingRate(timeline[i]) * coef * mgrCoef);
+    m[i] = cur;
+  }
+  return m;
+}
+function statusOf(m){
+  if(m < 1.0) return {label:'가능', color:'var(--status-best)', bg:'rgba(168,211,106,0.18)', text:'#a8d36a'};
+  if(m < 2.5) return {label:'거의 가능', color:'var(--status-caution)', bg:'rgba(244,192,74,0.18)', text:'#f4c04a'};
+  return {label:'불가능', color:'var(--status-unusable)', bg:'rgba(209,75,48,0.22)', text:'#d14b30'};
+}
+
+/* ============================================================
+   COURT SVG
+   ============================================================ */
+function courtSVG(fillColor){
+  return `
+  <svg class="court-svg" viewBox="0 0 60 100" preserveAspectRatio="xMidYMid meet">
+    <rect x="2" y="2" width="56" height="96" fill="${fillColor}" stroke="${fillColor}" stroke-opacity="0.9" stroke-width="0.5" rx="1"/>
+    <rect x="6" y="6" width="48" height="88" fill="none" stroke="rgba(245,230,211,0.55)" stroke-width="0.8"/>
+    <line x1="6" y1="50" x2="54" y2="50" stroke="rgba(245,230,211,0.9)" stroke-width="1.2"/>
+    <line x1="6" y1="26" x2="54" y2="26" stroke="rgba(245,230,211,0.45)" stroke-width="0.6"/>
+    <line x1="6" y1="74" x2="54" y2="74" stroke="rgba(245,230,211,0.45)" stroke-width="0.6"/>
+    <line x1="30" y1="26" x2="30" y2="74" stroke="rgba(245,230,211,0.45)" stroke-width="0.6"/>
+    <line x1="30" y1="48" x2="30" y2="52" stroke="rgba(245,230,211,0.9)" stroke-width="1.2"/>
+    <line x1="12" y1="6" x2="12" y2="94" stroke="rgba(245,230,211,0.35)" stroke-width="0.4"/>
+    <line x1="48" y1="6" x2="48" y2="94" stroke="rgba(245,230,211,0.35)" stroke-width="0.4"/>
+  </svg>`;
+}
+
+/* ============================================================
+   UI INIT
+   ============================================================ */
+const courtsGrid = document.getElementById('courtsGrid');
+const coefsGrid = document.getElementById('coefsGrid');
+const forecastList = document.getElementById('forecastList');
+const chartLegend = document.getElementById('chartLegend');
+
+function initUI(){
+  courtsGrid.innerHTML = '';
+  coefsGrid.innerHTML = '';
+  chartLegend.innerHTML = '';
+
+  for(let i=1;i<=5;i++){
+    const meta = COURT_META[i];
+    const card = document.createElement('div');
+    card.className = 'court-card';
+    card.id = `court-${i}`;
+    card.innerHTML = `
+      <div class="court-header">
+        <span class="court-num">${i}</span>
+        <span class="court-tag">${meta.tag}</span>
+      </div>
+      <div class="court-svg-wrap"></div>
+      <div class="court-status" id="status-${i}">-</div>
+      <div class="court-moisture">수분 <span class="val" id="mval-${i}">-</span> mm</div>
+    `;
+    courtsGrid.appendChild(card);
+
+    const item = document.createElement('div');
+    item.className = 'coef-item';
+    item.innerHTML = `
+      <div class="coef-label">
+        <span><strong>${i}</strong> · ${meta.tag}</span>
+        <span class="coef-val" id="coefVal-${i}">${coefs[i].toFixed(2)}</span>
+      </div>
+      <input type="range" min="0.1" max="3.0" value="${coefs[i]}" step="0.05" id="coef-${i}" />
+    `;
+    coefsGrid.appendChild(item);
+
+    const le1 = document.createElement('div');
+    le1.className = 'legend-item';
+    le1.innerHTML = `<span class="legend-swatch" style="background:${meta.color}"></span>${i}번 ${meta.tag}`;
+    chartLegend.appendChild(le1);
+  }
+  const sep = document.createElement('div');
+  sep.style.cssText = 'width:1px; background: var(--border); height: 14px;';
+  chartLegend.appendChild(sep);
+  const le2 = document.createElement('div');
+  le2.className = 'legend-item';
+  le2.innerHTML = `<span class="legend-dash" style="border-top-color: var(--cream-muted);"></span>예보구간`;
+  chartLegend.appendChild(le2);
+
+  // 슬라이더 이벤트 등록 (initUI 안에서 해야 DOM이 존재함)
+  for(let i=1;i<=5;i++){
+    document.getElementById(`coef-${i}`).addEventListener('input', (e) => {
+      coefs[i] = parseFloat(e.target.value);
+      document.getElementById(`coefVal-${i}`).textContent = coefs[i].toFixed(2);
+      saveSettings();
+      render();
+    });
+  }
+
+  // 관리자 역량 슬라이더
+  const mgrEl = document.getElementById('mgrCoef');
+  mgrEl.value = mgrCoef;
+  document.getElementById('mgrVal').textContent = mgrCoef.toFixed(2);
+  document.getElementById('mgrLabel').textContent = mgrLabelOf(mgrCoef);
+  mgrEl.addEventListener('input', (e) => {
+    mgrCoef = parseFloat(e.target.value);
+    document.getElementById('mgrVal').textContent = mgrCoef.toFixed(2);
+    document.getElementById('mgrLabel').textContent = mgrLabelOf(mgrCoef);
+    saveSettings();
+    render();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    coefs = {...DEFAULT_COEFS};
+    mgrCoef = DEFAULT_MGR;
+    clearSettings();
+    for(let i=1;i<=5;i++){
+      document.getElementById(`coef-${i}`).value = DEFAULT_COEFS[i];
+      document.getElementById(`coefVal-${i}`).textContent = DEFAULT_COEFS[i].toFixed(2);
+    }
+    mgrEl.value = DEFAULT_MGR;
+    document.getElementById('mgrVal').textContent = DEFAULT_MGR.toFixed(2);
+    document.getElementById('mgrLabel').textContent = mgrLabelOf(DEFAULT_MGR);
+    render();
+  });
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function updateNowDisplay(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const yr = now.getFullYear();
+  const mo = String(now.getMonth()+1).padStart(2,'0');
+  const dd = String(now.getDate()).padStart(2,'0');
+  const dowEn = ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()];
+  document.getElementById('nowTime').textContent = `${hh}:${mm}`;
+  document.getElementById('nowDate').textContent = `${yr} · ${mo} · ${dd} · ${dowEn}`;
+
+  if (timeline.length === 0) return;
+  const d = timeline[nowIdx];
+  if (!d) return;
+
+  document.getElementById('wxTa').textContent = d.ta != null ? d.ta.toFixed(1) : '-';
+  document.getElementById('wxWs').textContent = d.ws != null ? d.ws.toFixed(1) : '-';
+  document.getElementById('wxHm').textContent = d.hm != null ? d.hm : '-';
+  document.getElementById('wxRn').textContent = (d.rn || 0).toFixed(1);
+
+  document.getElementById('wxTaTrend').textContent = d.ta > 18 ? '따뜻함' : d.ta > 12 ? '온화' : '쌀쌀함';
+  document.getElementById('wxWsTrend').textContent = d.ws > 4.5 ? '강풍' : d.ws > 2.5 ? '미풍' : '잔잔';
+  document.getElementById('wxHmTrend').textContent = d.hm >= 85 ? '매우 습함' : d.hm >= 70 ? '습함' : d.hm >= 50 ? '보통' : '건조';
+  document.getElementById('wxRnTrend').textContent = d.rn > 0 ? '비 내림' : '비 없음';
+}
+
+function timeLabelFmt(t){
+  // "20260418 0900" → "04-18 09"
+  if (!t || t.length < 13) return t;
+  return t.slice(4,6) + '-' + t.slice(6,8) + ' ' + t.slice(9,11);
+}
+
+function timeToDate(t){
+  // "20260418 0900" → Date
+  const y = parseInt(t.slice(0,4));
+  const mo = parseInt(t.slice(4,6))-1;
+  const d = parseInt(t.slice(6,8));
+  const h = parseInt(t.slice(9,11));
+  return new Date(y, mo, d, h, 0);
+}
+
+function fmtRowTime(t){
+  const d = timeToDate(t);
+  const dow = ['일','월','화','수','목','금','토'][d.getDay()];
+  return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} (${dow}) ${String(d.getHours()).padStart(2,'0')}시`;
+}
+
+function render(){
+  if (timeline.length === 0) return;
+
+  const moistures = {};
+  for(let i=1;i<=5;i++){
+    moistures[i] = simulate(coefs[i]);
+
+    const cur = moistures[i][nowIdx] || 0;
+    const st = statusOf(cur);
+    const card = document.getElementById(`court-${i}`);
+    card.querySelector('.court-svg-wrap').innerHTML = courtSVG(st.color);
+    const statusEl = document.getElementById(`status-${i}`);
+    statusEl.textContent = st.label;
+    statusEl.style.color = st.text;
+    statusEl.style.background = st.bg;
+    document.getElementById(`mval-${i}`).textContent = cur.toFixed(1);
+  }
+
+  forecastList.innerHTML = '';
+  for(let i=1;i<=5;i++){
+    const fm = moistures[i].slice(nowIdx);
+    let firstPlayable=-1, firstNearly=-1;
+    for(let k=1;k<fm.length;k++){
+      if(firstNearly===-1 && fm[k]<2.5) firstNearly=k;
+      if(firstPlayable===-1 && fm[k]<1.0){ firstPlayable=k; break; }
+    }
+    let timingHTML;
+    const futureTimes = timeline.slice(nowIdx);
+    if(firstPlayable !== -1 && firstNearly !== -1 && firstNearly < firstPlayable){
+      timingHTML = `<span class="caut">거의 가능 ${fmtRowTime(futureTimes[firstNearly].time)}</span>  ━━▶  <strong>가능 ${fmtRowTime(futureTimes[firstPlayable].time)}</strong>`;
+    } else if(firstPlayable !== -1){
+      timingHTML = `<strong>가능 ${fmtRowTime(futureTimes[firstPlayable].time)}</strong>`;
+    } else if(firstNearly !== -1){
+      timingHTML = `<span class="caut">거의 가능 ${fmtRowTime(futureTimes[firstNearly].time)}</span> · 완전 복구 안 됨`;
+    } else {
+      timingHTML = `<span style="color: var(--status-unusable);">예보 기간 내 복구 불가</span>`;
+    }
+    const meta = COURT_META[i];
+    const row = document.createElement('div');
+    row.className = 'forecast-row';
+    row.style.borderLeftColor = meta.color;
+    row.innerHTML = `
+      <div class="fc-court"><span class="fc-dot" style="background:${meta.color}"></span>${i}번 · ${meta.tag}</div>
+      <div class="fc-timing">${timingHTML}</div>
+      <div class="fc-coef">×${coefs[i].toFixed(2)}</div>
+    `;
+    forecastList.appendChild(row);
+  }
+
+  if(chart) chart.destroy();
+  const ctx = document.getElementById('chart').getContext('2d');
+  const labels = timeline.map((t) => timeLabelFmt(t.time));
+  const datasets = [];
+  for(let i=1;i<=5;i++){
+    const m = moistures[i];
+    datasets.push({
+      label: `${i}번 실측`, data: m.map((v,idx)=>idx<=nowIdx?v:null),
+      borderColor: COURT_META[i].color, borderWidth: 2, tension: 0.25, pointRadius: 0, fill: false
+    });
+    datasets.push({
+      label: `${i}번 예보`, data: m.map((v,idx)=>idx>=nowIdx?v:null),
+      borderColor: COURT_META[i].color, borderWidth: 2, borderDash:[5,4], tension: 0.25, pointRadius: 0, fill: false
+    });
+  }
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: {mode:'index', intersect:false},
+      plugins: {
+        legend: {display: false},
+        tooltip: {
+          backgroundColor: 'rgba(18,10,6,0.95)',
+          borderColor: 'rgba(224,123,66,0.3)', borderWidth: 1,
+          titleFont: {family: 'IBM Plex Mono', size: 11},
+          bodyFont: {family: 'IBM Plex Mono', size: 11},
+          titleColor: '#f4a876', bodyColor: '#f5e6d3',
+          padding: 12, cornerRadius: 0,
+          filter: (item) => item.parsed.y !== null,
+          callbacks: {
+            title: (items) => labels[items[0].dataIndex],
+            label: (c) => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + ' mm'
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: {color: 'rgba(245,230,211,0.04)'},
+          ticks: {color: '#7a6550', font:{family:'IBM Plex Mono', size:10}, maxRotation:0, autoSkip:true, maxTicksLimit:8}
+        },
+        y: {
+          grid: {color: 'rgba(245,230,211,0.05)'},
+          ticks: {color: '#7a6550', font:{family:'IBM Plex Mono', size:10}, callback: (v) => v.toFixed(1)+'mm'},
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  setTimeout(() => {
+    if(chart && chart.scales && chart.scales.x){
+      const ctx2 = document.getElementById('chart').getContext('2d');
+      const xPos = chart.scales.x.getPixelForValue(nowIdx);
+      const yTop = chart.scales.y.top;
+      const yBot = chart.scales.y.bottom;
+      ctx2.save();
+      ctx2.strokeStyle = 'rgba(224,123,66,0.55)';
+      ctx2.lineWidth = 1.5;
+      ctx2.setLineDash([3,3]);
+      ctx2.beginPath();
+      ctx2.moveTo(xPos, yTop);
+      ctx2.lineTo(xPos, yBot);
+      ctx2.stroke();
+      ctx2.fillStyle = 'rgba(224,123,66,0.9)';
+      ctx2.font = '10px "IBM Plex Mono"';
+      ctx2.fillText('NOW', xPos+4, yTop+12);
+      ctx2.restore();
+    }
+  }, 150);
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+async function boot(){
+  loadSettings();
+  initUI();
+  const ok = await loadData();
+  if (ok) {
+    updateNowDisplay();
+    render();
+  }
+}
+
+// 5분마다 데이터 갱신
+setInterval(async () => {
+  const ok = await loadData();
+  if (ok) { updateNowDisplay(); render(); }
+}, 5 * 60 * 1000);
+
+// 1분마다 시계만 업데이트
+setInterval(updateNowDisplay, 60000);
+
+boot();
+</script>
+</body>
+</html>
