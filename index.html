@@ -100,13 +100,14 @@
 
   /* ===== COURTS ===== */
   .courts-section { margin-bottom: 44px; }
-  .courts-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .courts-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
   .court-card { background: var(--bg-surface); border: 1px solid var(--border); padding: 16px 14px; position: relative; overflow: hidden; transition: border-color 0.3s, transform 0.3s; opacity: 0; animation: riseIn 0.6s ease-out forwards; }
   .court-card:nth-child(1) { animation-delay: 0.05s; }
   .court-card:nth-child(2) { animation-delay: 0.12s; }
   .court-card:nth-child(3) { animation-delay: 0.19s; }
   .court-card:nth-child(4) { animation-delay: 0.26s; }
   .court-card:nth-child(5) { animation-delay: 0.33s; }
+  .court-card:nth-child(6) { animation-delay: 0.40s; }
   @keyframes riseIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
   .court-card:hover { border-color: var(--border-strong); }
   .court-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
@@ -120,7 +121,7 @@
   /* ===== COEF CONTROL ===== */
   .control-section { margin-bottom: 44px; }
   .control-panel { background: var(--bg-surface); border: 1px solid var(--border); padding: 22px; }
-  .coef-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+  .coef-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; }
   .coef-item { position: relative; }
   .coef-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--cream-muted); letter-spacing: 0.05em; }
   .coef-label strong { color: var(--clay-light); font-weight: 500; }
@@ -158,6 +159,20 @@
   .footer { padding-top: 24px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); line-height: 1.8; letter-spacing: 0.03em; }
   .footer strong { color: var(--clay-light); font-weight: 500; }
 
+  /* ===== DAWN MATRIX ===== */
+  .dawn-section { margin-bottom: 44px; }
+  .dawn-table { width: 100%; border-collapse: collapse; background: var(--bg-surface); border: 1px solid var(--border); }
+  .dawn-table th, .dawn-table td { padding: 12px 8px; text-align: center; border: 1px solid var(--border); font-family: var(--font-mono); }
+  .dawn-table thead th { background: var(--bg-card); font-size: 11px; color: var(--clay); letter-spacing: 0.15em; text-transform: uppercase; font-weight: 500; padding: 14px 8px; }
+  .dawn-table tbody th { background: var(--bg-card); font-size: 12px; color: var(--cream); letter-spacing: 0.05em; font-weight: 500; padding: 14px 12px; text-align: left; min-width: 110px; }
+  .dawn-table tbody th .dawn-dow { color: var(--clay-light); margin-right: 6px; }
+  .dawn-table tbody th .dawn-date { color: var(--cream-muted); font-size: 11px; font-weight: 400; }
+  .dawn-cell { font-size: 14px; font-weight: 500; padding: 16px 8px !important; }
+  .dawn-cell.ok { background: rgba(168,211,106,0.18); color: #a8d36a; }
+  .dawn-cell.cau { background: rgba(244,192,74,0.18); color: #f4c04a; }
+  .dawn-cell.no { background: rgba(209,75,48,0.18); color: #d14b30; }
+  .dawn-cell .mm { display: block; font-size: 9px; color: var(--cream-dim); margin-top: 3px; letter-spacing: 0; }
+
   /* ===== ADMIN MODE ===== */
   .admin-controls { display: flex; align-items: center; gap: 10px; }
   .admin-badge { font-family: var(--font-mono); font-size: 10px; padding: 5px 10px; border-radius: 2px; letter-spacing: 0.15em; text-transform: uppercase; transition: all 0.3s; }
@@ -193,7 +208,7 @@
     .wrap { padding: 20px 16px 40px; }
     .brand-title { font-size: 32px; }
     .wx-strip { grid-template-columns: repeat(2, 1fr); }
-    .courts-grid { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+    .courts-grid { grid-template-columns: repeat(6, 1fr); gap: 6px; }
     .court-card { padding: 10px 8px; }
     .court-num { font-size: 20px; }
     .court-tag { font-size: 8px; }
@@ -276,6 +291,16 @@
       <div class="sect-meta">TOP-DOWN VIEW · REAL-TIME</div>
     </div>
     <div class="courts-grid" id="courtsGrid"></div>
+  </section>
+
+  <section class="dawn-section">
+    <div class="sect-head">
+      <div class="sect-title">새벽 운동시간 전망 <span>DAWN OUTLOOK · 06:00</span></div>
+      <div class="sect-meta">매일 오전 6시 기준 사용 가능 여부</div>
+    </div>
+    <div style="overflow-x: auto;">
+      <table class="dawn-table" id="dawnTable"></table>
+    </div>
   </section>
 
   <section class="control-section">
@@ -380,14 +405,15 @@ let lastUpdateInfo = null;
 /* ============================================================
    COURTS CONFIG
    ============================================================ */
-const DEFAULT_COEFS = {1: 1.4, 2: 1.4, 3: 0.85, 4: 0.55, 5: 0.55};
+const DEFAULT_COEFS = {1: 1.4, 2: 1.4, 3: 0.85, 4: 0.55, 5: 0.55, 6: 0.5};
 const DEFAULT_MGR = 1.0;
 const COURT_META = {
   1: {tag: '양지 A', color: '#f4a876'},
   2: {tag: '양지 B', color: '#e07b42'},
   3: {tag: '반음지', color: '#b08c62'},
   4: {tag: '음지 A', color: '#6a8fb8'},
-  5: {tag: '음지 B', color: '#4d6989'}
+  5: {tag: '음지 B', color: '#4d6989'},
+  6: {tag: '음지 C', color: '#3a5470'}
 };
 let coefs = {...DEFAULT_COEFS};
 let mgrCoef = DEFAULT_MGR;
@@ -426,7 +452,7 @@ function subscribeSettings(onChange) {
     const v = snap.val();
     if (!v) return;
     if (v.coefs) {
-      for (let i=1; i<=5; i++) {
+      for (let i=1; i<=6; i++) {
         if (typeof v.coefs[i] === 'number') coefs[i] = v.coefs[i];
       }
     }
@@ -479,7 +505,7 @@ function applyAdminMode(){
     panel?.classList.add('viewer-mode');
   }
   // 슬라이더 활성/비활성
-  for (let i=1; i<=5; i++) {
+  for (let i=1; i<=6; i++) {
     const sl = document.getElementById(`coef-${i}`);
     if (sl) sl.disabled = !isAdmin;
   }
@@ -663,7 +689,7 @@ function initUI(){
   coefsGrid.innerHTML = '';
   chartLegend.innerHTML = '';
 
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=6;i++){
     const meta = COURT_META[i];
     const card = document.createElement('div');
     card.className = 'court-card';
@@ -704,7 +730,7 @@ function initUI(){
   chartLegend.appendChild(le2);
 
   // 슬라이더 이벤트 등록 (initUI 안에서 해야 DOM이 존재함)
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=6;i++){
     document.getElementById(`coef-${i}`).addEventListener('input', (e) => {
       coefs[i] = parseFloat(e.target.value);
       document.getElementById(`coefVal-${i}`).textContent = coefs[i].toFixed(2);
@@ -735,7 +761,7 @@ function initUI(){
     if (!confirm('모든 코트와 관리자 계수를 기본값으로 되돌릴까요? (전체 회원에게 적용됩니다)')) return;
     coefs = {...DEFAULT_COEFS};
     mgrCoef = DEFAULT_MGR;
-    for(let i=1;i<=5;i++){
+    for(let i=1;i<=6;i++){
       document.getElementById(`coef-${i}`).value = DEFAULT_COEFS[i];
       document.getElementById(`coefVal-${i}`).textContent = DEFAULT_COEFS[i].toFixed(2);
     }
@@ -797,11 +823,59 @@ function fmtRowTime(t){
   return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} (${dow}) ${String(d.getHours()).padStart(2,'0')}시`;
 }
 
+function renderDawnMatrix(moistures){
+  const tbl = document.getElementById('dawnTable');
+  if (!tbl || timeline.length === 0) return;
+
+  // 앞으로 4개의 새벽 6시 시점 인덱스 찾기
+  const dawnIndices = [];
+  for (let i = nowIdx; i < timeline.length; i++) {
+    const t = timeline[i].time;
+    // "20260418 0600" 또는 "2026-04-18 06:00" 형식 모두 지원
+    const hourPart = t.includes('-') ? t.slice(11, 13) : t.slice(9, 11);
+    if (hourPart === '06') {
+      dawnIndices.push(i);
+      if (dawnIndices.length >= 4) break;
+    }
+  }
+
+  if (dawnIndices.length === 0) {
+    tbl.innerHTML = '<tr><td style="padding: 20px; color: var(--cream-dim);">예보 범위 내 새벽 6시 데이터 없음</td></tr>';
+    return;
+  }
+
+  const dowKr = ['일','월','화','수','목','금','토'];
+  let html = '<thead><tr><th></th>';
+  for (let i=1; i<=6; i++) {
+    html += `<th>${i}번<br><span style="color:var(--cream-dim);font-weight:400;font-size:9px;letter-spacing:0.05em;">${COURT_META[i].tag}</span></th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  for (const di of dawnIndices) {
+    const t = timeline[di].time;
+    const d = timeToDate(t);
+    const dow = dowKr[d.getDay()];
+    const dateStr = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+    html += `<tr><th><span class="dawn-dow">${dow}</span><span class="dawn-date">${dateStr} 06시</span></th>`;
+    for (let i=1; i<=6; i++) {
+      const m = moistures[i][di] || 0;
+      let cls, label;
+      if (m < 1.0) { cls = 'ok'; label = '가능'; }
+      else if (m < 2.5) { cls = 'cau'; label = '거의'; }
+      else { cls = 'no'; label = '불가'; }
+      html += `<td class="dawn-cell ${cls}">${label}<span class="mm">${m.toFixed(1)}mm</span></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
 function render(){
   if (timeline.length === 0) return;
 
   const moistures = {};
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=6;i++){
     moistures[i] = simulate(coefs[i]);
 
     const cur = moistures[i][nowIdx] || 0;
@@ -815,8 +889,11 @@ function render(){
     document.getElementById(`mval-${i}`).textContent = cur.toFixed(1);
   }
 
+  // ========== 새벽 6시 매트릭스 ==========
+  renderDawnMatrix(moistures);
+
   forecastList.innerHTML = '';
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=6;i++){
     const fm = moistures[i].slice(nowIdx);
     let firstPlayable=-1, firstNearly=-1;
     for(let k=1;k<fm.length;k++){
@@ -850,7 +927,7 @@ function render(){
   const ctx = document.getElementById('chart').getContext('2d');
   const labels = timeline.map((t) => timeLabelFmt(t.time));
   const datasets = [];
-  for(let i=1;i<=5;i++){
+  for(let i=1;i<=6;i++){
     const m = moistures[i];
     datasets.push({
       label: `${i}번 실측`, data: m.map((v,idx)=>idx<=nowIdx?v:null),
@@ -931,7 +1008,7 @@ async function boot(){
   // Firebase에서 설정 실시간 구독 (관리자가 바꾸면 모든 화면 자동 업데이트)
   subscribeSettings(() => {
     // 슬라이더 UI 동기화
-    for (let i=1; i<=5; i++) {
+    for (let i=1; i<=6; i++) {
       const sl = document.getElementById(`coef-${i}`);
       const lbl = document.getElementById(`coefVal-${i}`);
       if (sl) sl.value = coefs[i];
