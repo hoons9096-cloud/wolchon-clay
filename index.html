@@ -241,7 +241,7 @@
     <div>
       <div class="brand-mark">TERRA CONTROL · 월촌테니스장</div>
       <div class="brand-title">앞산 클레이 컨디션</div>
-      <div class="brand-subtitle">5-COURT CLAY MOISTURE · MONITORING SYSTEM · v5</div>
+      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v6</div>
     </div>
     <div class="now-block">
       <div class="admin-controls" style="margin-bottom: 8px; justify-content: flex-end;">
@@ -362,7 +362,7 @@
 
   <footer class="footer">
     <div><strong>데이터 소스</strong> · 기상청 ASOS(어제 실측) + 초단기실황(오늘 실측) + 단기예보(향후) · 대구 143번 관측소</div>
-    <div style="margin-top: 6px;"><strong>모델 · v5</strong> · 야간 건조율 12% · 습도 75%↑ 건조 중단 · 습도 85%↑ & 야간 시 이슬 보정 · 코트별 계수 ×</div>
+    <div style="margin-top: 6px;"><strong>모델 · v6</strong> · 야간 건조율 12% · 습도 75%↑ 건조 중단 · 습도 90%↑ & 야간 시 미세 이슬 보정(+0.015mm/h) · 코트별 계수 ×</div>
     <div style="margin-top: 6px;"><strong>상태 판정</strong> · 0~1.0 가능 · 1.0~2.5 거의 가능 · 2.5+ 불가능 [수분잔량 mm]</div>
     <div style="margin-top: 12px; color: var(--clay); letter-spacing: 0.24em;">— 영남테니스클럽 × 앞산 클레이 —</div>
   </footer>
@@ -406,6 +406,7 @@ let lastUpdateInfo = null;
    COURTS CONFIG
    ============================================================ */
 const DEFAULT_COEFS = {1: 1.4, 2: 1.4, 3: 0.85, 4: 0.55, 5: 0.55, 6: 0.5};
+const DEFAULT_DRAIN = {1: 1.2, 2: 1.2, 3: 1.2, 4: 1.2, 5: 1.2, 6: 1.2};  // 월촌 전반적으로 배수 나쁨
 const DEFAULT_MGR = 1.0;
 const COURT_META = {
   1: {tag: '양지 A', color: '#f4a876'},
@@ -416,6 +417,7 @@ const COURT_META = {
   6: {tag: '음지 C', color: '#3a5470'}
 };
 let coefs = {...DEFAULT_COEFS};
+let drains = {...DEFAULT_DRAIN};
 let mgrCoef = DEFAULT_MGR;
 
 const STORAGE_KEY = 'wolchon-clay-coefs-v1';
@@ -429,6 +431,7 @@ async function saveSettingsToCloud() {
   try {
     const payload = {
       coefs,
+      drains,
       mgrCoef,
       updatedAt: Date.now(),
       updatedBy: 'admin',
@@ -454,6 +457,11 @@ function subscribeSettings(onChange) {
     if (v.coefs) {
       for (let i=1; i<=6; i++) {
         if (typeof v.coefs[i] === 'number') coefs[i] = v.coefs[i];
+      }
+    }
+    if (v.drains) {
+      for (let i=1; i<=6; i++) {
+        if (typeof v.drains[i] === 'number') drains[i] = v.drains[i];
       }
     }
     if (typeof v.mgrCoef === 'number') mgrCoef = v.mgrCoef;
@@ -508,6 +516,8 @@ function applyAdminMode(){
   for (let i=1; i<=6; i++) {
     const sl = document.getElementById(`coef-${i}`);
     if (sl) sl.disabled = !isAdmin;
+    const dsl = document.getElementById(`drain-${i}`);
+    if (dsl) dsl.disabled = !isAdmin;
   }
   const mgr = document.getElementById('mgrCoef');
   if (mgr) mgr.disabled = !isAdmin;
@@ -639,13 +649,13 @@ function baseDryingRate(d){
   return 0.55 * daytime * (tempF*0.15 + windF*0.2 + solarF*0.4 + humF*0.25);
 }
 function dewAdd(d){
-  return (d.hm >= 85 && d.icsr < 0.1) ? 0.04 : 0;
+  return (d.hm >= 90 && d.icsr < 0.1) ? 0.015 : 0;
 }
-function simulate(coef){
+function simulate(coef, drain){
   const m = new Array(timeline.length).fill(0);
   let cur = 0;
   for(let i=0; i<timeline.length; i++){
-    cur += (timeline[i].rn || 0) * 0.85;
+    cur += (timeline[i].rn || 0) * drain;
     cur += dewAdd(timeline[i]);
     cur = Math.max(0, cur - baseDryingRate(timeline[i]) * coef * mgrCoef);
     m[i] = cur;
@@ -713,6 +723,11 @@ function initUI(){
         <span class="coef-val" id="coefVal-${i}">${coefs[i].toFixed(2)}</span>
       </div>
       <input type="range" min="0.1" max="3.0" value="${coefs[i]}" step="0.05" id="coef-${i}" />
+      <div style="display:flex; justify-content: space-between; align-items: baseline; margin-top: 10px;">
+        <label style="font-family: var(--font-mono); font-size: 9px; color: var(--cream-dim); letter-spacing: 0.1em;">배수 (흡수율)</label>
+        <span class="coef-val" id="drainVal-${i}" style="font-size: 12px; color: var(--cream-muted);">${drains[i].toFixed(2)}</span>
+      </div>
+      <input type="range" min="0.3" max="2.0" value="${drains[i]}" step="0.05" id="drain-${i}" />
     `;
     coefsGrid.appendChild(item);
 
@@ -739,6 +754,14 @@ function initUI(){
     document.getElementById(`coef-${i}`).addEventListener('change', () => {
       saveSettingsToCloud();
     });
+    document.getElementById(`drain-${i}`).addEventListener('input', (e) => {
+      drains[i] = parseFloat(e.target.value);
+      document.getElementById(`drainVal-${i}`).textContent = drains[i].toFixed(2);
+      render();
+    });
+    document.getElementById(`drain-${i}`).addEventListener('change', () => {
+      saveSettingsToCloud();
+    });
   }
 
   // 관리자 역량 슬라이더
@@ -760,10 +783,13 @@ function initUI(){
     if (!isAdmin) return;
     if (!confirm('모든 코트와 관리자 계수를 기본값으로 되돌릴까요? (전체 회원에게 적용됩니다)')) return;
     coefs = {...DEFAULT_COEFS};
+    drains = {...DEFAULT_DRAIN};
     mgrCoef = DEFAULT_MGR;
     for(let i=1;i<=6;i++){
       document.getElementById(`coef-${i}`).value = DEFAULT_COEFS[i];
       document.getElementById(`coefVal-${i}`).textContent = DEFAULT_COEFS[i].toFixed(2);
+      document.getElementById(`drain-${i}`).value = DEFAULT_DRAIN[i];
+      document.getElementById(`drainVal-${i}`).textContent = DEFAULT_DRAIN[i].toFixed(2);
     }
     mgrEl.value = DEFAULT_MGR;
     document.getElementById('mgrVal').textContent = DEFAULT_MGR.toFixed(2);
@@ -876,7 +902,7 @@ function render(){
 
   const moistures = {};
   for(let i=1;i<=6;i++){
-    moistures[i] = simulate(coefs[i]);
+    moistures[i] = simulate(coefs[i], drains[i]);
 
     const cur = moistures[i][nowIdx] || 0;
     const st = statusOf(cur);
@@ -1013,6 +1039,10 @@ async function boot(){
       const lbl = document.getElementById(`coefVal-${i}`);
       if (sl) sl.value = coefs[i];
       if (lbl) lbl.textContent = coefs[i].toFixed(2);
+      const dsl = document.getElementById(`drain-${i}`);
+      const dlbl = document.getElementById(`drainVal-${i}`);
+      if (dsl) dsl.value = drains[i];
+      if (dlbl) dlbl.textContent = drains[i].toFixed(2);
     }
     const mgrEl = document.getElementById('mgrCoef');
     if (mgrEl) mgrEl.value = mgrCoef;
