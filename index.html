@@ -8,6 +8,24 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&family=IBM+Plex+Mono:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  const app = initializeApp({
+    apiKey: "AIzaSyBLEGto1SK7JiowYJJCuBCfpBsjrkiqklM",
+    authDomain: "tennis-score-a3654.firebaseapp.com",
+    databaseURL: "https://tennis-score-a3654-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "tennis-score-a3654",
+    storageBucket: "tennis-score-a3654.firebasestorage.app",
+    messagingSenderId: "361320303748",
+    appId: "1:361320303748:web:0238102b53e7209cef86d1"
+  });
+  const db = getDatabase(app);
+  const settingsRef = ref(db, 'clay_settings/wolchon');
+  // window 전역으로 노출 (일반 script에서 접근)
+  window._fb = { ref, get, set, onValue, settingsRef };
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
 <style>
   :root {
     --bg-deep: #120a06;
@@ -140,6 +158,37 @@
   .footer { padding-top: 24px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); line-height: 1.8; letter-spacing: 0.03em; }
   .footer strong { color: var(--clay-light); font-weight: 500; }
 
+  /* ===== ADMIN MODE ===== */
+  .admin-controls { display: flex; align-items: center; gap: 10px; }
+  .admin-badge { font-family: var(--font-mono); font-size: 10px; padding: 5px 10px; border-radius: 2px; letter-spacing: 0.15em; text-transform: uppercase; transition: all 0.3s; }
+  .admin-badge.viewer { background: rgba(122, 101, 80, 0.2); color: var(--cream-dim); border: 1px solid var(--border); }
+  .admin-badge.admin { background: rgba(168, 211, 106, 0.15); color: var(--status-best); border: 1px solid var(--status-best); }
+  .admin-btn { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--cream-muted); background: transparent; border: 1px solid var(--border-strong); padding: 5px 10px; cursor: pointer; transition: all 0.2s; border-radius: 2px; }
+  .admin-btn:hover { color: var(--clay-light); border-color: var(--clay); }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(18, 10, 6, 0.85); display: none; align-items: center; justify-content: center; z-index: 999; backdrop-filter: blur(4px); }
+  .modal-overlay.active { display: flex; }
+  .modal-box { background: var(--bg-surface); border: 1px solid var(--border-strong); padding: 32px; min-width: 320px; max-width: 90vw; }
+  .modal-title { font-family: var(--font-mono); font-size: 11px; color: var(--clay); letter-spacing: 0.24em; text-transform: uppercase; margin-bottom: 20px; }
+  .modal-input { width: 100%; background: var(--bg-deep); border: 1px solid var(--border-strong); color: var(--cream); padding: 12px 14px; font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.05em; outline: none; transition: border-color 0.2s; }
+  .modal-input:focus { border-color: var(--clay); }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+  .modal-btn { font-family: var(--font-mono); font-size: 11px; padding: 10px 18px; letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer; border: 1px solid var(--border-strong); background: transparent; color: var(--cream-muted); transition: all 0.2s; }
+  .modal-btn:hover { color: var(--cream); border-color: var(--clay); }
+  .modal-btn.primary { background: var(--clay-deep); color: var(--cream); border-color: var(--clay-deep); }
+  .modal-btn.primary:hover { background: var(--clay); border-color: var(--clay); }
+  .modal-error { color: var(--status-unusable); font-family: var(--font-mono); font-size: 11px; margin-top: 10px; min-height: 16px; }
+
+  /* 비활성화된 슬라이더 */
+  input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+  input[type="range"]:disabled::-webkit-slider-thumb { background: var(--cream-dim); box-shadow: 0 0 0 3px var(--bg-elevated); }
+  .control-panel.viewer-mode { position: relative; }
+  .control-panel.viewer-mode::after { content: '관리자 모드에서만 수정 가능'; position: absolute; top: 12px; right: 16px; font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); letter-spacing: 0.1em; }
+
+  /* 마지막 업데이트 표시 */
+  .last-update { font-family: var(--font-mono); font-size: 10px; color: var(--cream-dim); margin-top: 12px; letter-spacing: 0.05em; text-align: right; }
+  .last-update strong { color: var(--clay-light); }
+
   @media (max-width: 900px) {
     .wrap { padding: 20px 16px 40px; }
     .brand-title { font-size: 32px; }
@@ -180,6 +229,10 @@
       <div class="brand-subtitle">5-COURT CLAY MOISTURE · MONITORING SYSTEM · v5</div>
     </div>
     <div class="now-block">
+      <div class="admin-controls" style="margin-bottom: 8px; justify-content: flex-end;">
+        <span class="admin-badge viewer" id="adminBadge">VIEWER</span>
+        <button class="admin-btn" id="adminBtn">관리자 모드</button>
+      </div>
       <div class="now-label">NOW</div>
       <div class="now-time" id="nowTime">--:--</div>
       <div class="now-date" id="nowDate">— · — · —</div>
@@ -257,6 +310,7 @@
       </div>
 
       <div class="coef-grid" id="coefsGrid"></div>
+      <div class="last-update" id="lastUpdate">— · 마지막 업데이트 정보 없음</div>
     </div>
   </section>
 
@@ -289,6 +343,19 @@
   </footer>
 </div>
 
+<!-- ADMIN PASSWORD MODAL -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal-box">
+    <div class="modal-title">관리자 인증 · ADMIN ACCESS</div>
+    <input type="password" class="modal-input" id="pwInput" placeholder="비밀번호" autocomplete="off" />
+    <div class="modal-error" id="pwError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" id="modalCancel">취소</button>
+      <button class="modal-btn primary" id="modalSubmit">확인</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    API CONFIG — 배포 후 URL 교체
@@ -301,6 +368,14 @@ const API_URL = (() => {
   // 배포된 Functions URL (Google Cloud Run)
   return 'https://weather-rurosi5eja-du.a.run.app';
 })();
+
+/* ============================================================
+   ADMIN MODE
+   ============================================================ */
+const ADMIN_PASSWORD = 'wolchon2026';  // ★ 회원들 모르게 형만 알 비밀번호. 바꾸려면 이 줄만 수정
+const ADMIN_KEY = 'wolchon-clay-admin-v1';
+let isAdmin = sessionStorage.getItem(ADMIN_KEY) === '1';
+let lastUpdateInfo = null;
 
 /* ============================================================
    COURTS CONFIG
@@ -319,27 +394,60 @@ let mgrCoef = DEFAULT_MGR;
 
 const STORAGE_KEY = 'wolchon-clay-coefs-v1';
 
-function saveSettings(){
+/* ============================================================
+   FIREBASE STORAGE
+   ============================================================ */
+async function saveSettingsToCloud() {
+  if (!window._fb) { console.warn('Firebase not ready'); return false; }
+  if (!isAdmin) return false;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({coefs, mgrCoef}));
-  } catch(e) { console.warn('Save failed:', e); }
+    const payload = {
+      coefs,
+      mgrCoef,
+      updatedAt: Date.now(),
+      updatedBy: 'admin',
+    };
+    await window._fb.set(window._fb.settingsRef, payload);
+    lastUpdateInfo = payload;
+    renderLastUpdate();
+    return true;
+  } catch (e) {
+    console.error('Cloud save failed:', e);
+    return false;
+  }
 }
-function loadSettings(){
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const obj = JSON.parse(raw);
-    if (obj.coefs) {
+
+function subscribeSettings(onChange) {
+  if (!window._fb) {
+    window.addEventListener('fb-ready', () => subscribeSettings(onChange), {once: true});
+    return;
+  }
+  window._fb.onValue(window._fb.settingsRef, (snap) => {
+    const v = snap.val();
+    if (!v) return;
+    if (v.coefs) {
       for (let i=1; i<=5; i++) {
-        if (typeof obj.coefs[i] === 'number') coefs[i] = obj.coefs[i];
+        if (typeof v.coefs[i] === 'number') coefs[i] = v.coefs[i];
       }
     }
-    if (typeof obj.mgrCoef === 'number') mgrCoef = obj.mgrCoef;
-  } catch(e) { console.warn('Load failed:', e); }
+    if (typeof v.mgrCoef === 'number') mgrCoef = v.mgrCoef;
+    lastUpdateInfo = v;
+    onChange();
+  });
 }
-function clearSettings(){
-  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+
+function renderLastUpdate(){
+  const el = document.getElementById('lastUpdate');
+  if (!el) return;
+  if (!lastUpdateInfo || !lastUpdateInfo.updatedAt) {
+    el.textContent = '— · 마지막 업데이트 정보 없음';
+    return;
+  }
+  const d = new Date(lastUpdateInfo.updatedAt);
+  const fmt = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  el.innerHTML = `최종 변경 · <strong>${fmt}</strong>`;
 }
+
 function mgrLabelOf(v){
   if (v < 0.5) return '방치';
   if (v < 0.8) return '소홀';
@@ -348,6 +456,75 @@ function mgrLabelOf(v){
   if (v < 1.8) return '꼼꼼';
   if (v < 2.2) return '전문가';
   return '최상';
+}
+
+/* ============================================================
+   ADMIN UI
+   ============================================================ */
+function applyAdminMode(){
+  const badge = document.getElementById('adminBadge');
+  const btn = document.getElementById('adminBtn');
+  const panel = document.querySelector('.control-panel');
+  if (isAdmin) {
+    badge.textContent = 'ADMIN';
+    badge.classList.remove('viewer');
+    badge.classList.add('admin');
+    btn.textContent = '관리자 종료';
+    panel?.classList.remove('viewer-mode');
+  } else {
+    badge.textContent = 'VIEWER';
+    badge.classList.remove('admin');
+    badge.classList.add('viewer');
+    btn.textContent = '관리자 모드';
+    panel?.classList.add('viewer-mode');
+  }
+  // 슬라이더 활성/비활성
+  for (let i=1; i<=5; i++) {
+    const sl = document.getElementById(`coef-${i}`);
+    if (sl) sl.disabled = !isAdmin;
+  }
+  const mgr = document.getElementById('mgrCoef');
+  if (mgr) mgr.disabled = !isAdmin;
+  const reset = document.getElementById('resetBtn');
+  if (reset) reset.disabled = !isAdmin;
+}
+
+function bindAdminControls(){
+  const btn = document.getElementById('adminBtn');
+  const modal = document.getElementById('adminModal');
+  const input = document.getElementById('pwInput');
+  const error = document.getElementById('pwError');
+  const cancel = document.getElementById('modalCancel');
+  const submit = document.getElementById('modalSubmit');
+
+  btn.addEventListener('click', () => {
+    if (isAdmin) {
+      isAdmin = false;
+      sessionStorage.removeItem(ADMIN_KEY);
+      applyAdminMode();
+    } else {
+      input.value = '';
+      error.textContent = '';
+      modal.classList.add('active');
+      setTimeout(() => input.focus(), 100);
+    }
+  });
+  cancel.addEventListener('click', () => modal.classList.remove('active'));
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); });
+  const tryLogin = () => {
+    if (input.value === ADMIN_PASSWORD) {
+      isAdmin = true;
+      sessionStorage.setItem(ADMIN_KEY, '1');
+      modal.classList.remove('active');
+      applyAdminMode();
+    } else {
+      error.textContent = '비밀번호가 틀렸습니다';
+      input.value = '';
+      input.focus();
+    }
+  };
+  submit.addEventListener('click', tryLogin);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
 }
 
 /* ============================================================
@@ -531,8 +708,10 @@ function initUI(){
     document.getElementById(`coef-${i}`).addEventListener('input', (e) => {
       coefs[i] = parseFloat(e.target.value);
       document.getElementById(`coefVal-${i}`).textContent = coefs[i].toFixed(2);
-      saveSettings();
       render();
+    });
+    document.getElementById(`coef-${i}`).addEventListener('change', () => {
+      saveSettingsToCloud();
     });
   }
 
@@ -545,14 +724,17 @@ function initUI(){
     mgrCoef = parseFloat(e.target.value);
     document.getElementById('mgrVal').textContent = mgrCoef.toFixed(2);
     document.getElementById('mgrLabel').textContent = mgrLabelOf(mgrCoef);
-    saveSettings();
     render();
+  });
+  mgrEl.addEventListener('change', () => {
+    saveSettingsToCloud();
   });
 
   document.getElementById('resetBtn').addEventListener('click', () => {
+    if (!isAdmin) return;
+    if (!confirm('모든 코트와 관리자 계수를 기본값으로 되돌릴까요? (전체 회원에게 적용됩니다)')) return;
     coefs = {...DEFAULT_COEFS};
     mgrCoef = DEFAULT_MGR;
-    clearSettings();
     for(let i=1;i<=5;i++){
       document.getElementById(`coef-${i}`).value = DEFAULT_COEFS[i];
       document.getElementById(`coefVal-${i}`).textContent = DEFAULT_COEFS[i].toFixed(2);
@@ -560,6 +742,7 @@ function initUI(){
     mgrEl.value = DEFAULT_MGR;
     document.getElementById('mgrVal').textContent = DEFAULT_MGR.toFixed(2);
     document.getElementById('mgrLabel').textContent = mgrLabelOf(DEFAULT_MGR);
+    saveSettingsToCloud();
     render();
   });
 }
@@ -740,8 +923,30 @@ function render(){
    BOOT
    ============================================================ */
 async function boot(){
-  loadSettings();
   initUI();
+  bindAdminControls();
+  applyAdminMode();
+  renderLastUpdate();
+
+  // Firebase에서 설정 실시간 구독 (관리자가 바꾸면 모든 화면 자동 업데이트)
+  subscribeSettings(() => {
+    // 슬라이더 UI 동기화
+    for (let i=1; i<=5; i++) {
+      const sl = document.getElementById(`coef-${i}`);
+      const lbl = document.getElementById(`coefVal-${i}`);
+      if (sl) sl.value = coefs[i];
+      if (lbl) lbl.textContent = coefs[i].toFixed(2);
+    }
+    const mgrEl = document.getElementById('mgrCoef');
+    if (mgrEl) mgrEl.value = mgrCoef;
+    const mgrVal = document.getElementById('mgrVal');
+    if (mgrVal) mgrVal.textContent = mgrCoef.toFixed(2);
+    const mgrLabel = document.getElementById('mgrLabel');
+    if (mgrLabel) mgrLabel.textContent = mgrLabelOf(mgrCoef);
+    renderLastUpdate();
+    if (timeline.length > 0) render();
+  });
+
   const ok = await loadData();
   if (ok) {
     updateNowDisplay();
