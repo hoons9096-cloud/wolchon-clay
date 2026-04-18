@@ -268,6 +268,32 @@
     .sc-result-grid { grid-template-columns: repeat(3, 1fr); }
   }
 
+  /* ===== INTENSITY COMPARISON TABLE ===== */
+  .intensity-section { margin-top: 32px; padding: 20px; background: var(--bg-surface); border: 1px solid var(--border); }
+  .intensity-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .intensity-title { font-family: var(--font-mono); font-size: 11px; color: var(--clay); letter-spacing: 0.2em; text-transform: uppercase; }
+  .intensity-controls { display: flex; gap: 10px; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--cream-muted); }
+  .intensity-controls input[type="number"] { background: var(--bg-deep); border: 1px solid var(--border-strong); color: var(--cream); padding: 6px 10px; font-family: var(--font-mono); font-size: 12px; width: 60px; outline: none; }
+  .intensity-controls input:focus { border-color: var(--clay); }
+  .int-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  .int-table th, .int-table td { padding: 10px 8px; text-align: center; border: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; }
+  .int-table thead th { background: var(--bg-card); color: var(--clay); letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px; font-weight: 500; padding: 12px 6px; }
+  .int-table tbody th { background: var(--bg-card); color: var(--cream); text-align: left; padding-left: 14px; font-weight: 500; min-width: 110px; }
+  .int-table tbody th small { display: block; color: var(--cream-dim); font-size: 9px; margin-top: 2px; letter-spacing: 0.05em; }
+  .int-cell { padding: 12px 6px !important; line-height: 1.3; }
+  .int-cell.ok { background: rgba(168,211,106,0.15); color: #a8d36a; }
+  .int-cell.cau { background: rgba(244,192,74,0.15); color: #f4c04a; }
+  .int-cell.no { background: rgba(209,75,48,0.15); color: #d14b30; }
+  .int-cell .v { font-size: 13px; font-weight: 500; }
+  .int-cell .l { font-size: 9px; opacity: 0.8; margin-top: 2px; }
+  .int-summary { margin-top: 16px; padding: 12px 16px; background: var(--bg-deep); font-family: var(--font-mono); font-size: 11px; color: var(--cream-muted); line-height: 1.6; }
+  .int-summary strong { color: var(--clay-light); }
+
+  @media (max-width: 900px) {
+    .int-table th, .int-table td { padding: 6px 3px; font-size: 10px; }
+    .int-cell .v { font-size: 11px; }
+  }
+
   /* ===== ADMIN MODE ===== */
   .admin-controls { display: flex; align-items: center; gap: 10px; }
   .admin-badge { font-family: var(--font-mono); font-size: 10px; padding: 5px 10px; border-radius: 2px; letter-spacing: 0.15em; text-transform: uppercase; transition: all 0.3s; }
@@ -336,7 +362,7 @@
     <div>
       <div class="brand-mark">TERRA CONTROL · 월촌테니스장</div>
       <div class="brand-title">앞산 클레이 컨디션</div>
-      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v13</div>
+      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v14</div>
     </div>
     <div class="now-block">
       <div class="admin-controls" style="margin-bottom: 8px; justify-content: flex-end;">
@@ -517,6 +543,26 @@
         <div class="sect-meta" id="evalTimeDisplay">—</div>
       </div>
       <div class="scenario-result-grid" id="scenarioResults"></div>
+
+      <!-- ===== 강도 비교 테이블 ===== -->
+      <div class="intensity-section">
+        <div class="intensity-header">
+          <div class="intensity-title">강도별 비교 · INTENSITY COMPARISON</div>
+          <div class="intensity-controls">
+            <span>총 강수량:</span>
+            <input type="number" id="intensityTotal" value="10" min="1" max="50" step="1" />
+            <span>mm</span>
+            <button class="admin-btn" id="intensityRun" style="margin-left: 8px;">재계산</button>
+          </div>
+        </div>
+        <div style="font-family: var(--font-body); font-size: 12px; color: var(--cream-muted); margin-bottom: 10px; line-height: 1.5;">
+          같은 총 강수량이 <strong style="color: var(--clay-light);">1시간(호우) / 3시간 / 6시간 / 12시간(이슬비)</strong>으로 분산될 때 평가 시각의 코트 상태 비교.
+          호우는 표면 유출이 커서 흡수는 적지만 짧게 끝남, 이슬비는 유출 적고 흡수 많지만 오래 지속.
+        </div>
+        <table class="int-table" id="intensityTable"></table>
+        <div class="int-summary" id="intensitySummary"></div>
+      </div>
+      <!-- ===== /강도 비교 테이블 ===== -->
     </section>
 
     <section style="margin-top: 32px;">
@@ -1490,6 +1536,9 @@ function renderScenario(){
 
   // 타임라인 차트
   renderScenarioChart(extended, scenarioMoistures, evalIdx);
+
+  // 강도 비교 테이블도 같이 업데이트
+  renderIntensityTable();
 }
 
 function renderScenarioChart(extended, moistures, evalIdx){
@@ -1594,6 +1643,92 @@ function renderScenarioChart(extended, moistures, evalIdx){
   }, 150);
 }
 
+function renderIntensityTable(){
+  const table = document.getElementById('intensityTable');
+  const summary = document.getElementById('intensitySummary');
+  const totalInput = document.getElementById('intensityTotal');
+  if (!table || !totalInput || timeline.length === 0) return;
+
+  const totalMm = parseFloat(totalInput.value) || 10;
+  const evalInput = document.getElementById('evalTime');
+  if (!evalInput || !evalInput.value) return;
+  const evalDate = new Date(evalInput.value);
+
+  // 4가지 강도 시나리오
+  const scenarios = [
+    { label: '1시간 호우', duration: 1, desc: totalMm + 'mm/h' },
+    { label: '3시간 강한 비', duration: 3, desc: (totalMm/3).toFixed(1) + 'mm/h' },
+    { label: '6시간 보통 비', duration: 6, desc: (totalMm/6).toFixed(1) + 'mm/h' },
+    { label: '12시간 이슬비', duration: 12, desc: (totalMm/12).toFixed(1) + 'mm/h' },
+  ];
+
+  // 시작 시각: 평가시각의 ~40시간 전 오후 2시
+  const rainStart = new Date(evalDate.getTime() - 40 * 3600 * 1000);
+  rainStart.setHours(14, 0, 0, 0);
+
+  const extended = extendTimelineForScenario(evalDate);
+  const evalTimeStr = toTimeStr(evalDate);
+  let evalIdx = extended.findIndex(d => d.time === evalTimeStr);
+  if (evalIdx === -1) evalIdx = extended.length - 1;
+
+  const results = scenarios.map(sc => {
+    const virtualEvents = [{
+      time: toTimeStr(rainStart),
+      rn: totalMm,
+      duration: sc.duration
+    }];
+    const courtsResult = {};
+    for (let i = 1; i <= 6; i++) {
+      const m = simulateScenario(coefs[i], drains[i], extended, virtualEvents);
+      courtsResult[i] = m[evalIdx] || 0;
+    }
+    return { ...sc, courts: courtsResult };
+  });
+
+  // 테이블 렌더
+  let html = '<thead><tr><th>강도 시나리오</th>';
+  for (let i = 1; i <= 6; i++) {
+    html += `<th>${i}번<br><small>${COURT_META[i].tag}</small></th>`;
+  }
+  html += '<th>가능<br>코트</th></tr></thead><tbody>';
+
+  results.forEach(r => {
+    let playableCount = 0;
+    html += `<tr><th>${r.label}<small>${r.desc}</small></th>`;
+    for (let i = 1; i <= 6; i++) {
+      const v = r.courts[i];
+      let cls, label;
+      if (v < 1.0) { cls = 'ok'; label = '가능'; playableCount++; }
+      else if (v < 2.5) { cls = 'cau'; label = '거의'; }
+      else { cls = 'no'; label = '불가'; }
+      html += `<td class="int-cell ${cls}"><div class="v">${v.toFixed(1)}</div><div class="l">${label}</div></td>`;
+    }
+    const countCls = playableCount >= 3 ? 'ok' : playableCount >= 1 ? 'cau' : 'no';
+    html += `<td class="int-cell ${countCls}"><div class="v">${playableCount}/6</div></td></tr>`;
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+
+  // 요약 문장
+  const bestIdx = results.reduce((best, r, idx) => {
+    const count = Object.values(r.courts).filter(v => v < 1.0).length;
+    return count > best.count ? {idx, count} : best;
+  }, {idx: 0, count: -1});
+
+  const evalDisp = evalDate.toLocaleString('ko-KR', {month:'numeric', day:'numeric', weekday:'short', hour:'2-digit'});
+  const best = results[bestIdx.idx];
+  const worstCount = results.reduce((w, r) => {
+    const c = Object.values(r.courts).filter(v => v < 1.0).length;
+    return Math.min(w, c);
+  }, 6);
+
+  if (bestIdx.count === worstCount) {
+    summary.innerHTML = `<strong>${totalMm}mm</strong>가 어떤 패턴으로 와도 <strong>${evalDisp}</strong>에 가능 코트 수는 동일 (<strong>${bestIdx.count}/6</strong>). 총량이 결정적이며 강도 차이는 영향 미미.`;
+  } else {
+    summary.innerHTML = `<strong>${totalMm}mm</strong> · <strong>${evalDisp}</strong> 기준 — 가장 유리: <strong>${best.label}</strong> (가능 ${bestIdx.count}/6), 가장 불리: 가능 ${worstCount}/6. 같은 양이라도 <strong>${bestIdx.count - worstCount}개 코트</strong> 차이 발생.`;
+  }
+}
+
 function bindScenarioControls(){
   // 탭 전환
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1664,6 +1799,12 @@ function bindScenarioControls(){
   eval0.setHours(6, 0, 0, 0);
   document.getElementById('evalTime').value = toDatetimeLocal(eval0);
   document.getElementById('evalTime').addEventListener('input', renderScenario);
+
+  // 강도 비교 테이블 컨트롤
+  const intTotal = document.getElementById('intensityTotal');
+  const intRun = document.getElementById('intensityRun');
+  if (intTotal) intTotal.addEventListener('input', renderIntensityTable);
+  if (intRun) intRun.addEventListener('click', renderIntensityTable);
 }
 
 async function boot(){
