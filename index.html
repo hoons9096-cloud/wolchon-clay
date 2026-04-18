@@ -655,7 +655,7 @@ function baseDryingRate(d){
   }
 
   // 기본 건조력 (습도 고계에서도 완전히 멎지는 않음)
-  const base = 0.9 * daytime * (tempF*0.15 + windF*0.2 + solarF*0.4 + humF*0.25);
+  const base = 1.8 * daytime * (tempF*0.15 + windF*0.2 + solarF*0.4 + humF*0.25);
 
   // 습도 95% 이상 & 야간은 거의 정지
   if (d.hm >= 95 && !isDay) return 0;
@@ -665,9 +665,9 @@ function baseDryingRate(d){
 function dewAdd(d){
   return (d.hm >= 90 && d.icsr < 0.1) ? 0.015 : 0;
 }
-// 클레이 수분수지 상수
-const M_SAT = 8.0;   // 자유수 상한 (이 이상은 표면에 고이는 자유수)
-const M_RES = 0.3;   // 흡착수 한계 (이 밑은 거의 안 마름)
+// 클레이 수분수지 상수 (월촌 현실 맞춤)
+const M_SAT = 3.0;   // 자유수 상한 — 이 이상에선 표면에 자유수, 빠르게 증발
+const M_RES = 0.3;   // 흡착수 잔류량 — 이 밑은 거의 정체
 
 function simulate(coef, drain){
   const m = new Array(timeline.length).fill(0);
