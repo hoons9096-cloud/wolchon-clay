@@ -241,7 +241,7 @@
     <div>
       <div class="brand-mark">TERRA CONTROL · 월촌테니스장</div>
       <div class="brand-title">앞산 클레이 컨디션</div>
-      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v11</div>
+      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v12</div>
     </div>
     <div class="now-block">
       <div class="admin-controls" style="margin-bottom: 8px; justify-content: flex-end;">
@@ -362,7 +362,7 @@
 
   <footer class="footer">
     <div><strong>데이터 소스</strong> · 기상청 ASOS(어제 실측) + 초단기실황(오늘 실측) + 단기예보(향후) · 대구 143번 관측소</div>
-    <div style="margin-top: 6px;"><strong>모델 · v11</strong> · 월촌 클레이(다짐층) 특성 반영: 침투 거의 없음 → 비 오면 표면에 고이고 유출 + 증발로만 빠짐 · 점토 바인더로 오래 지속 · 양지 유출 크고 음지 적게</div>
+    <div style="margin-top: 6px;"><strong>모델 · v12</strong> · 구장 관리자 실측 피드백 기반 보정 (2026-04-18): 1번 양지A 최상, 2번 양지B 차등, 음지는 느림 · 월촌 다짐 클레이 특성: 침투 거의 없음, 표면 유출+증발로만 해소</div>
     <div style="margin-top: 6px;"><strong>상태 판정</strong> · 0~1.0 가능 · 1.0~2.5 거의 가능 · 2.5+ 불가능 [수분잔량 mm]</div>
     <div style="margin-top: 12px; color: var(--clay); letter-spacing: 0.24em;">— 영남테니스클럽 × 앞산 클레이 —</div>
   </footer>
@@ -405,8 +405,8 @@ let lastUpdateInfo = null;
 /* ============================================================
    COURTS CONFIG
    ============================================================ */
-const DEFAULT_COEFS = {1: 1.4, 2: 1.4, 3: 0.85, 4: 0.55, 5: 0.55, 6: 0.5};
-const DEFAULT_DRAIN = {1: 0.3, 2: 0.3, 3: 0.5, 4: 0.7, 5: 0.7, 6: 0.8};  // 양지는 배수양호, 음지로 갈수록 많이 머금음
+const DEFAULT_COEFS = {1: 1.6, 2: 1.2, 3: 0.85, 4: 0.55, 5: 0.55, 6: 0.5};
+const DEFAULT_DRAIN = {1: 0.2, 2: 0.4, 3: 0.5, 4: 0.7, 5: 0.7, 6: 0.8};  // 1번은 배수 최상, 2번은 덜함, 음지로 갈수록 많이 머금음
 const DEFAULT_MGR = 1.0;
 const COURT_META = {
   1: {tag: '양지 A', color: '#f4a876'},
