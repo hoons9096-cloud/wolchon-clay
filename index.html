@@ -241,7 +241,7 @@
     <div>
       <div class="brand-mark">TERRA CONTROL · 월촌테니스장</div>
       <div class="brand-title">앞산 클레이 컨디션</div>
-      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v8</div>
+      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v9</div>
     </div>
     <div class="now-block">
       <div class="admin-controls" style="margin-bottom: 8px; justify-content: flex-end;">
@@ -362,7 +362,7 @@
 
   <footer class="footer">
     <div><strong>데이터 소스</strong> · 기상청 ASOS(어제 실측) + 초단기실황(오늘 실측) + 단기예보(향후) · 대구 143번 관측소</div>
-    <div style="margin-top: 6px;"><strong>모델 · v8</strong> · 클레이 수분수지 (지수감쇠): 잔량 많으면 빨리 증발, 흡착수(0.3mm↓)는 거의 정체 · 습도·기온·일사·풍속 연속 함수 · 코트별 건조/배수/관리자 계수</div>
+    <div style="margin-top: 6px;"><strong>모델 · v9</strong> · 클레이 특성 반영: 급격한 흡수 + 꾸준한 완만 건조 · 점토 바인더로 과포화시 더 느리게 · 흡착수 0.3mm↓ 정체 · 코트별 건조/배수/관리자 계수</div>
     <div style="margin-top: 6px;"><strong>상태 판정</strong> · 0~1.0 가능 · 1.0~2.5 거의 가능 · 2.5+ 불가능 [수분잔량 mm]</div>
     <div style="margin-top: 12px; color: var(--clay); letter-spacing: 0.24em;">— 영남테니스클럽 × 앞산 클레이 —</div>
   </footer>
@@ -654,8 +654,8 @@ function baseDryingRate(d){
     humF = Math.max(0, humF);
   }
 
-  // 기본 건조력 (습도 고계에서도 완전히 멎지는 않음)
-  const base = 1.8 * daytime * (tempF*0.15 + windF*0.2 + solarF*0.4 + humF*0.25);
+  // 기본 건조력 (클레이 특성: 느리게 꾸준히 증발)
+  const base = 0.3 * daytime * (tempF*0.15 + windF*0.2 + solarF*0.4 + humF*0.25);
 
   // 습도 95% 이상 & 야간은 거의 정지
   if (d.hm >= 95 && !isDay) return 0;
@@ -665,9 +665,12 @@ function baseDryingRate(d){
 function dewAdd(d){
   return (d.hm >= 90 && d.icsr < 0.1) ? 0.015 : 0;
 }
-// 클레이 수분수지 상수 (월촌 현실 맞춤)
-const M_SAT = 3.0;   // 자유수 상한 — 이 이상에선 표면에 자유수, 빠르게 증발
+// 클레이코트 수분 방출 특성
+// - 점토 바인더가 수분을 꽉 잡고 있어서 잔량과 무관하게 느리게 방출
+// - 잔량이 매우 많을 땐 오히려 더 더디게 (점토 포화 → 표면 장력 증가)
+// - 흡착수(0.3mm↓)는 거의 정체
 const M_RES = 0.3;   // 흡착수 잔류량 — 이 밑은 거의 정체
+const M_HIGH = 4.0;  // 과포화 구간 — 이 이상은 내부 점토층에 갇혀 더 느리게 방출
 
 function simulate(coef, drain){
   const m = new Array(timeline.length).fill(0);
@@ -677,16 +680,19 @@ function simulate(coef, drain){
     cur += (timeline[i].rn || 0) * drain;
     cur += dewAdd(timeline[i]);
 
-    // 증발 (지수감쇠: 잔량에 비례)
+    // 증발 (클레이코트 특성: 점토 바인더가 수분 잡음 → 잔량 많을수록 오히려 느림)
     const potential = baseDryingRate(timeline[i]) * coef * mgrCoef;
     let dry;
-    if (cur > M_RES) {
-      // 자유수/모관수 단계: 가용성 M/M_sat
-      const avail = Math.min(1.0, (cur - M_RES) / (M_SAT - M_RES));
-      dry = potential * avail;
-    } else {
-      // 흡착수 단계: 거의 안 빠짐 (5%만)
+    if (cur <= M_RES) {
+      // 흡착수: 거의 정체
       dry = potential * 0.05;
+    } else if (cur <= M_HIGH) {
+      // 정상 건조 구간: 일정 속도로 꾸준히 증발
+      dry = potential;
+    } else {
+      // 과포화: 점토에 갇힘 → 오히려 더 느림
+      const excess = cur - M_HIGH;
+      dry = potential * Math.max(0.4, 1.0 - excess * 0.1);
     }
     cur = Math.max(0, cur - dry);
     m[i] = cur;
