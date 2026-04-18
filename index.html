@@ -241,7 +241,7 @@
     <div>
       <div class="brand-mark">TERRA CONTROL · 월촌테니스장</div>
       <div class="brand-title">앞산 클레이 컨디션</div>
-      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v7</div>
+      <div class="brand-subtitle">6-COURT CLAY MOISTURE · MONITORING SYSTEM · v8</div>
     </div>
     <div class="now-block">
       <div class="admin-controls" style="margin-bottom: 8px; justify-content: flex-end;">
@@ -362,7 +362,7 @@
 
   <footer class="footer">
     <div><strong>데이터 소스</strong> · 기상청 ASOS(어제 실측) + 초단기실황(오늘 실측) + 단기예보(향후) · 대구 143번 관측소</div>
-    <div style="margin-top: 6px;"><strong>모델 · v7</strong> · 습도에 따라 건조율 연속 감쇠(75%↑에서도 미약하게 진행) · 야간+습도95%↑ 정지 · 습도 90%↑ 야간 이슬 보정 · 코트별 건조/배수/관리자 계수 적용</div>
+    <div style="margin-top: 6px;"><strong>모델 · v8</strong> · 클레이 수분수지 (지수감쇠): 잔량 많으면 빨리 증발, 흡착수(0.3mm↓)는 거의 정체 · 습도·기온·일사·풍속 연속 함수 · 코트별 건조/배수/관리자 계수</div>
     <div style="margin-top: 6px;"><strong>상태 판정</strong> · 0~1.0 가능 · 1.0~2.5 거의 가능 · 2.5+ 불가능 [수분잔량 mm]</div>
     <div style="margin-top: 12px; color: var(--clay); letter-spacing: 0.24em;">— 영남테니스클럽 × 앞산 클레이 —</div>
   </footer>
@@ -655,7 +655,7 @@ function baseDryingRate(d){
   }
 
   // 기본 건조력 (습도 고계에서도 완전히 멎지는 않음)
-  const base = 0.55 * daytime * (tempF*0.15 + windF*0.2 + solarF*0.4 + humF*0.25);
+  const base = 0.9 * daytime * (tempF*0.15 + windF*0.2 + solarF*0.4 + humF*0.25);
 
   // 습도 95% 이상 & 야간은 거의 정지
   if (d.hm >= 95 && !isDay) return 0;
@@ -665,13 +665,30 @@ function baseDryingRate(d){
 function dewAdd(d){
   return (d.hm >= 90 && d.icsr < 0.1) ? 0.015 : 0;
 }
+// 클레이 수분수지 상수
+const M_SAT = 8.0;   // 자유수 상한 (이 이상은 표면에 고이는 자유수)
+const M_RES = 0.3;   // 흡착수 한계 (이 밑은 거의 안 마름)
+
 function simulate(coef, drain){
   const m = new Array(timeline.length).fill(0);
   let cur = 0;
   for(let i=0; i<timeline.length; i++){
+    // 강수 및 이슬 유입
     cur += (timeline[i].rn || 0) * drain;
     cur += dewAdd(timeline[i]);
-    cur = Math.max(0, cur - baseDryingRate(timeline[i]) * coef * mgrCoef);
+
+    // 증발 (지수감쇠: 잔량에 비례)
+    const potential = baseDryingRate(timeline[i]) * coef * mgrCoef;
+    let dry;
+    if (cur > M_RES) {
+      // 자유수/모관수 단계: 가용성 M/M_sat
+      const avail = Math.min(1.0, (cur - M_RES) / (M_SAT - M_RES));
+      dry = potential * avail;
+    } else {
+      // 흡착수 단계: 거의 안 빠짐 (5%만)
+      dry = potential * 0.05;
+    }
+    cur = Math.max(0, cur - dry);
     m[i] = cur;
   }
   return m;
